@@ -62,4 +62,4 @@ pip install pyautogui pystray pillow pywin32 pyinstaller
 若遇到软件运行问题或功能需求，可通过以下方式反馈：
 - 开发者：Arlen Liu
 - 联系邮箱：liuml2003@163.com
-- 版本信息：V1.0（2025-10-17）
+- 版本信息：V1.0（2025-10-17）"# doubao_ser" 
