@@ -9,21 +9,21 @@ from typing import Optional, List
 from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox, ttk
-from PIL import Image, ImageDraw, ImageFont  # 需安装Pillow：pip install pillow
-import pystray  # 需安装系统托盘库：pip install pystray
+from PIL import Image, ImageDraw, ImageFont
+import pystray
 from screenshot_core import ScreenshotCore
 
 class SocketClient:
     def __init__(self, server_ip: str, server_port: int = 7893, 
                  screenshot_dir: str = "screenshots", screenshot_interval: int = 60):
         self.server_ip = server_ip
-        self.server_port = server_port
+        self.server_port = server_port  
         self.screenshot_dir = screenshot_dir
-        self.screenshot_interval = screenshot_interval
+        self.screenshot_interval = screenshot_interval  
         self.sent_files = set()
         self.is_running = True
         self.screenshot_core = ScreenshotCore(save_dir=screenshot_dir, interval=screenshot_interval)
-        self.tray_icon = None  # 托盘图标对象
+        self.tray_icon = None
 
     def _get_latest_screenshots(self, max_age: int = 300) -> List[str]:
         if not os.path.exists(self.screenshot_dir):
@@ -60,19 +60,16 @@ class SocketClient:
             client_socket.connect((self.server_ip, self.server_port))
             print(f"\n[传图模块] 已连接服务端：{self.server_ip}:{self.server_port}")
 
-            # 发送文件名
             filename_bytes = filename.encode("utf-8")
             filename_len = struct.pack("!I", len(filename_bytes))
             client_socket.sendall(filename_len)
             client_socket.sendall(filename_bytes)
 
-            # 发送文件数据
             with open(file_path, "rb") as f:
                 file_data = f.read()
             file_len = struct.pack("!I", len(file_data))
             client_socket.sendall(file_len)
 
-            # 分块发送
             sent_bytes = 0
             total_bytes = len(file_data)
             while sent_bytes < total_bytes and self.is_running:
@@ -100,15 +97,13 @@ class SocketClient:
                 pass
 
     def _run_screenshot_thread(self) -> None:
-        self.screenshot_core.run_loop()
+        self.screenshot_core.run_loop()  
 
     def run_all(self, check_interval: int = 10) -> None:
-        # 启动截图线程
         screenshot_thread = threading.Thread(target=self._run_screenshot_thread, daemon=True)
         screenshot_thread.start()
         print(f"[主程序] 截图线程已启动（间隔{self.screenshot_interval}秒）")
 
-        # 启动传图监控
         print(f"[主程序] 目标服务端：{self.server_ip}:{self.server_port}")
         try:
             while self.is_running:
@@ -133,20 +128,18 @@ class SocketClient:
             print("[主程序] 所有功能已停止")
 
     def stop(self):
-        """停止所有线程"""
         self.is_running = False
         if self.tray_icon:
             self.tray_icon.stop()
 
 
-class IPToolWindow:
-    """IP输入窗口"""
+class ConfigWindow:
+    """配置窗口：包含IP、端口、截图间隔输入框"""
     def __init__(self, root):
         self.root = root
-        self.root.title("截图上传客户端")
-        self.root.geometry("300x150")
+        self.root.title("截图上传客户端 - 配置")
+        self.root.geometry("450x300")  # 大幅增大窗口尺寸
         self.root.resizable(False, False)
-        self.root.iconbitmap(default="")  # 可自定义图标
 
         # 居中显示
         self.root.update_idletasks()
@@ -156,87 +149,118 @@ class IPToolWindow:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 
-        # 界面元素
-        ttk.Label(self.root, text="请输入服务器IP地址：").pack(pady=10)
-        self.ip_entry = ttk.Entry(self.root, width=20)
-        self.ip_entry.pack(pady=5)
+        # 主框架，设置大的内边距
+        main_frame = ttk.Frame(self.root, padding=30)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 1. IP输入框
+        ttk.Label(main_frame, text="服务器IP地址：").grid(row=0, column=0, sticky=tk.W, pady=(10, 10))
+        self.ip_entry = ttk.Entry(main_frame, width=35)
+        self.ip_entry.grid(row=0, column=1, pady=(10, 10))
         self.ip_entry.insert(0, "192.168.1.6")  # 默认IP
 
-        btn_frame = ttk.Frame(self.root)
-        btn_frame.pack(pady=10)
-        ttk.Button(btn_frame, text="确定", command=self.start_client).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="取消", command=root.quit).pack(side=tk.LEFT, padx=5)
+        # 2. 端口输入框
+        ttk.Label(main_frame, text="服务器端口：").grid(row=1, column=0, sticky=tk.W, pady=(10, 10))
+        self.port_entry = ttk.Entry(main_frame, width=35)
+        self.port_entry.grid(row=1, column=1, pady=(10, 10))
+        self.port_entry.insert(0, "7893")  # 默认端口
 
-    def validate_ip(self, ip):
-        """简单验证IP格式"""
+        # 3. 截图间隔输入框
+        ttk.Label(main_frame, text="截图间隔（秒）：").grid(row=2, column=0, sticky=tk.W, pady=(10, 10))
+        self.interval_entry = ttk.Entry(main_frame, width=35)
+        self.interval_entry.grid(row=2, column=1, pady=(10, 30))
+        self.interval_entry.insert(0, "60")  # 默认间隔
+
+        # 按钮区域，设置更大的垂直间距
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=20)
+        ttk.Button(btn_frame, text="确定", command=self.start_client).grid(row=0, column=0, padx=20)
+        ttk.Button(btn_frame, text="取消", command=root.quit).grid(row=0, column=1, padx=20)
+
+    def validate_inputs(self):
+        """验证IP、端口、间隔的有效性"""
+        # 验证IP
+        ip = self.ip_entry.get().strip()
         parts = ip.split('.')
         if len(parts) != 4:
-            return False
+            return False, "IP地址格式错误（需为xxx.xxx.xxx.xxx）"
         for part in parts:
             if not part.isdigit() or not (0 <= int(part) <= 255):
-                return False
-        return True
+                return False, "IP地址格式错误（每个段需为0-255的数字）"
+        
+        # 验证端口（1-65535之间的整数）
+        try:
+            port = int(self.port_entry.get().strip())
+            if not (1 <= port <= 65535):
+                return False, "端口号需为1-65535之间的整数"
+        except ValueError:
+            return False, "端口号需为整数"
+        
+        # 验证截图间隔（正整数）
+        try:
+            interval = int(self.interval_entry.get().strip())
+            if interval <= 0:
+                return False, "截图间隔需为正整数"
+        except ValueError:
+            return False, "截图间隔需为整数"
+        
+        return True, "验证通过"
 
     def start_client(self):
-        """验证IP并启动客户端"""
-        server_ip = self.ip_entry.get().strip()
-        if not self.validate_ip(server_ip):
-            messagebox.showerror("错误", "请输入有效的IP地址（如192.168.1.6）")
+        """验证输入并启动客户端"""
+        valid, msg = self.validate_inputs()
+        if not valid:
+            messagebox.showerror("输入错误", msg)
             return
 
-        # 关闭输入窗口，启动后台服务和托盘
-        self.root.destroy()
-        self.start_tray_and_service(server_ip)
+        server_ip = self.ip_entry.get().strip()
+        server_port = int(self.port_entry.get().strip())
+        screenshot_interval = int(self.interval_entry.get().strip())
 
-    def start_tray_and_service(self, server_ip):
-        """启动系统托盘和后台服务（修复图标创建错误）"""
-        # 初始化客户端
+        self.root.destroy()
+        self.start_tray_and_service(server_ip, server_port, screenshot_interval)
+
+    def start_tray_and_service(self, server_ip, server_port, screenshot_interval):
+        """启动托盘和后台服务（传入端口和间隔参数）"""
         client = SocketClient(
             server_ip=server_ip,
-            screenshot_interval=60,
+            server_port=server_port,
+            screenshot_interval=screenshot_interval,
             screenshot_dir="screenshots"
         )
 
-        # 启动后台服务线程
         service_thread = threading.Thread(target=client.run_all, daemon=True)
         service_thread.start()
 
-        # 创建托盘图标（修复：用纯PIL图片，不依赖Tkinter）
         def on_quit(icon, item):
             client.stop()
             icon.stop()
             sys.exit(0)
 
-        # 1. 生成纯PIL格式的图标（蓝色背景，64x64大小）
-        icon_image = Image.new('RGB', (64, 64), color='#2E86AB')  # 蓝色背景
-        # 在图标上添加文字“截”，更直观
+        icon_image = Image.new('RGB', (64, 64), color='#2E86AB')
         draw = ImageDraw.Draw(icon_image)
         try:
-            # 尝试加载系统默认字体
             font = ImageFont.truetype("arial.ttf", 32)
         except:
-            # 没有arial字体时用默认字体
             font = ImageFont.load_default(size=32)
-        # 在图标中心画文字
         draw.text((18, 10), "截", fill="white", font=font)
 
-        # 2. 创建托盘图标（直接用PIL的Image对象，不依赖Tkinter）
         tray_icon = pystray.Icon(
             name="screenshot_uploader",
-            icon=icon_image,  # 直接传PIL图片
-            title="截图上传客户端"
+            icon=icon_image,
+            title=f"截图上传客户端（{server_ip}:{server_port}）"
         )
-        # 设置右键菜单
         tray_icon.menu = pystray.Menu(pystray.MenuItem("退出", on_quit))
         client.tray_icon = tray_icon
 
-        # 显示托盘提示并运行托盘
-        tray_icon.notify("截图上传客户端已启动", "提示")
+        tray_icon.notify(
+            f"已连接到 {server_ip}:{server_port}\n截图间隔：{screenshot_interval}秒", 
+            "启动成功"
+        )
         tray_icon.run()
 
 
 if __name__ == "__main__":
-    # 启动IP输入窗口
     root = tk.Tk()
-    app = IPToolWindow(root)
+    app = ConfigWindow(root)
     root.mainloop()
